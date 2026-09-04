@@ -1,7 +1,7 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef, useState } from "react";
+import { motion, useScroll, useTransform, useInView } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { Reveal } from "@/components/animations";
 import { FloatingHearts } from "@/components/floating-hearts";
 import { SectionDivider } from "@/components/section-divider";
@@ -100,6 +100,96 @@ const TIMELINE: TimelineItem[] = [
   ║  These float around the centre piece.           ║
   ╚══════════════════════════════════════════════════╝
 */
+/*
+  ╔══════════════════════════════════════════════════╗
+  ║  ✏️  EDIT YOUR LETTER HERE                      ║
+  ║  Each line types out letter-by-letter on scroll ║
+  ╚══════════════════════════════════════════════════╝
+*/
+const LETTER_LINES: { text: string; className: string }[] = [
+  {
+    text: "Dear Mee So,",
+    className: "font-signature text-2xl text-plum sm:text-3xl md:text-4xl",
+  },
+  {
+    text: "Replace this paragraph with your own words. Tell them how you feel, what made you notice them, why they matter to you.",
+    className: "mt-4 text-xs leading-relaxed text-white/60 sm:mt-6 sm:text-sm",
+  },
+  {
+    text: "Write something honest. Something that sounds like you. You don't need perfect words - just real ones.",
+    className: "mt-3 text-xs leading-relaxed text-white/60 sm:mt-4 sm:text-sm",
+  },
+  {
+    text: "Talk about your hopes, your dreams for the two of you. What do you want to build together? What kind of future do you picture?",
+    className: "mt-3 text-xs leading-relaxed text-white/60 sm:mt-4 sm:text-sm",
+  },
+  {
+    text: "And finally, tell them what you need from them. Honesty. Patience. A chance. Whatever feels true.",
+    className: "mt-3 text-xs leading-relaxed text-white/60 sm:mt-4 sm:text-sm",
+  },
+  {
+    text: "Sign it with something personal. A time, a date, a feeling. Make it yours.",
+    className: "mt-3 text-xs leading-relaxed text-white/80 sm:mt-4 sm:text-sm",
+  },
+  {
+    text: "Forever yours \u2665",
+    className: "mt-6 font-signature text-xl text-saffron/60 sm:mt-8 sm:text-2xl",
+  },
+];
+
+/*
+  Typewriter effect \u2014 types each line character by character
+  (with a blinking cursor), one line after another,
+  starting when the letter scrolls into view.
+*/
+function TypewriterLetter({ lines }: { lines: { text: string; className: string }[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: "-15% 0px" });
+  const [lineIdx, setLineIdx] = useState(0);
+  const [charIdx, setCharIdx] = useState(0);
+
+  useEffect(() => {
+    if (!inView || lineIdx >= lines.length) return;
+    const current = lines[lineIdx].text;
+    if (charIdx < current.length) {
+      // typing speed per character (ms)
+      const t = setTimeout(() => setCharIdx((c) => c + 1), 40);
+      return () => clearTimeout(t);
+    }
+    // pause between lines
+    const t = setTimeout(() => {
+      setLineIdx((i) => i + 1);
+      setCharIdx(0);
+    }, 450);
+    return () => clearTimeout(t);
+  }, [inView, lineIdx, charIdx, lines]);
+
+  return (
+    <div ref={ref} className="min-h-[200px]">
+      {lines.map((line, i) => {
+        if (i > lineIdx) return null; // not started yet
+        const done = i < lineIdx;
+        const shown = done ? line.text : line.text.slice(0, charIdx);
+        const typing = !done && inView && lineIdx < lines.length;
+        return (
+          <p key={i} className={line.className}>
+            {shown}
+            {typing && (
+              <motion.span
+                className="inline-block"
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+              >
+                _
+              </motion.span>
+            )}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 const FLOATING_WORDS = [
   "chase your dreams",
   "i'm rooting for you",
@@ -505,40 +595,7 @@ export default function Home() {
               ✶
             </motion.div>
 
-            <Reveal variant="fadeUp">
-              <p className="font-signature text-2xl text-plum sm:text-3xl md:text-4xl">
-                Dear [Name],
-              </p>
-            </Reveal>
-            <Reveal variant="fadeUp" delay={0.2}>
-              <div className="mt-4 space-y-3 text-xs leading-relaxed text-white/60 sm:mt-6 sm:space-y-4 sm:text-sm">
-                <p>
-                  Replace this paragraph with your own words. Tell them how you
-                  feel, what made you notice them, why they matter to you.
-                </p>
-                <p>
-                  Write something honest. Something that sounds like you. You don&apos;t
-                  need perfect words - just real ones.
-                </p>
-                <p>
-                  Talk about your hopes, your dreams for the two of you. What do
-                  you want to build together? What kind of future do you picture?
-                </p>
-                <p>
-                  And finally, tell them what you need from them. Honesty.
-                  Patience. A chance. Whatever feels true.
-                </p>
-                <p className="text-white/80">
-                  Sign it with something personal. A time, a date, a feeling. Make
-                  it yours.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal variant="fadeUp" delay={0.4}>
-              <p className="mt-6 font-signature text-xl text-saffron/60 sm:mt-8 sm:text-2xl">
-                Forever yours, at [time] ♥
-              </p>
-            </Reveal>
+            <TypewriterLetter lines={LETTER_LINES} />
           </motion.div>
         </div>
       </FoldSection>
