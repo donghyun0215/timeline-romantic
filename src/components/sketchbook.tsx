@@ -6,11 +6,13 @@ import Image from "next/image";
 
 /*
   ── Love Actually style sketchbook timeline ──
-  One white sketchbook page per moment.
-  Text types out letter by letter; when a page
-  finishes typing, it flips over the spiral
-  binding to reveal the next page.
-  Tap the page to skip / advance.
+  Landscape sketchbook, spiral-bound on the left,
+  viewed from a person's POV. Each moment is one page:
+  text types out letter by letter, then the page turns
+  like a real book — rotating around the left binding,
+  showing the paper's backside and a travelling shadow.
+  The bottom-right corner sits slightly curled,
+  inviting you to turn the page.
 */
 
 export interface SketchPage {
@@ -24,22 +26,69 @@ export interface SketchPage {
 
 const TYPE_SPEED = 55; // ms per character — higher = slower
 const TITLE_SPEED = 75; // title types slightly slower
-const PAGE_PAUSE = 2000; // ms to rest on a finished page before flipping
+const PAGE_PAUSE = 2200; // ms to rest on a finished page before turning
+const FLIP_DURATION = 1.1; // seconds for the page turn
 
+/* Spiral rings down the left edge — part of the book, so they never rotate */
 function SpiralBinding() {
   return (
-    <div className="absolute -top-3 left-0 right-0 flex justify-around px-6 sm:-top-4">
-      {Array.from({ length: 9 }).map((_, i) => (
-        <div key={i} className="relative h-6 w-3 sm:h-8 sm:w-4">
+    <div className="absolute -left-2.5 top-0 bottom-0 z-40 flex flex-col justify-around py-4 sm:-left-3.5">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="relative h-3 w-5 sm:h-4 sm:w-7">
           {/* ring */}
-          <div className="absolute inset-x-0 top-0 h-6 w-3 rounded-full border-2 border-neutral-500/80 sm:h-8 sm:w-4" />
-          {/* hole punched in the paper */}
-          <div className="absolute bottom-0 left-1/2 h-2.5 w-2.5 -translate-x-1/2 translate-y-1 rounded-full bg-[#0e0b16] sm:h-3 sm:w-3" />
+          <div
+            className="absolute inset-y-0 left-0 w-5 rounded-full border-2 border-neutral-400 sm:w-7"
+            style={{
+              borderColor: "#8a8a8a",
+              boxShadow: "inset 0 1px 1px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.45)",
+            }}
+          />
+          {/* punched hole in the paper */}
+          <div className="absolute right-0 top-1/2 h-2 w-2 -translate-y-1/2 translate-x-0.5 rounded-full bg-[#1a1523] shadow-[inset_0_1px_2px_rgba(0,0,0,0.8)] sm:h-2.5 sm:w-2.5" />
         </div>
       ))}
     </div>
   );
 }
+
+/* The curled bottom-right corner — classic "turn me" page curl */
+function PageCurl() {
+  return (
+    <motion.div
+      className="pointer-events-none absolute bottom-0 right-0 z-20 h-10 w-10 sm:h-14 sm:w-14"
+      animate={{ scale: [1, 1.12, 1] }}
+      transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+      style={{ transformOrigin: "bottom right" }}
+    >
+      {/* dark gap revealed beneath the lifted corner */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(315deg, rgba(0,0,0,0.28) 0%, rgba(0,0,0,0.12) 12%, transparent 48%)",
+          borderBottomRightRadius: 10,
+        }}
+      />
+      {/* the folded-over paper (its backside) */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(315deg, transparent 46%, #d9d9d9 50%, #ffffff 62%, #f2f2f2 78%, #e6e6e6 100%)",
+          clipPath: "polygon(100% 0, 0 100%, 100% 100%)",
+          filter: "drop-shadow(-3px -3px 4px rgba(0,0,0,0.18))",
+        }}
+      />
+    </motion.div>
+  );
+}
+
+/* Paper surface shared by page front & back */
+const PAPER_STYLE: React.CSSProperties = {
+  background:
+    // faint grain + soft vignette on plain white paper
+    "radial-gradient(ellipse at 30% 20%, #ffffff 0%, #fdfdfd 55%, #f6f6f6 100%)",
+};
 
 export function SketchbookTimeline({
   pages,
@@ -50,6 +99,7 @@ export function SketchbookTimeline({
 }) {
   const [started, setStarted] = useState(false);
   const [pageIdx, setPageIdx] = useState(0);
+  const [dir, setDir] = useState(1); // 1 = forward, -1 = back
   const [titleChars, setTitleChars] = useState(0);
   const [descChars, setDescChars] = useState(0);
   const flipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,7 +123,7 @@ export function SketchbookTimeline({
     }
   }, [started, titleChars, descChars, titleDone, descDone, pageIdx]);
 
-  // auto-flip when the page finishes typing
+  // auto-turn the page when it finishes typing
   useEffect(() => {
     if (!started || !pageDone || isLast) return;
     flipTimer.current = setTimeout(() => goTo(pageIdx + 1), PAGE_PAUSE);
@@ -85,14 +135,16 @@ export function SketchbookTimeline({
 
   function goTo(idx: number) {
     if (flipTimer.current) clearTimeout(flipTimer.current);
-    setPageIdx(Math.max(0, Math.min(idx, pages.length - 1)));
+    const clamped = Math.max(0, Math.min(idx, pages.length - 1));
+    if (clamped === pageIdx) return;
+    setDir(clamped > pageIdx ? 1 : -1);
+    setPageIdx(clamped);
     setTitleChars(0);
     setDescChars(0);
   }
 
   function handleTap() {
     if (!pageDone) {
-      // finish typing instantly
       setTitleChars(page.title.length);
       setDescChars(page.description.length);
     } else if (!isLast) {
@@ -100,81 +152,195 @@ export function SketchbookTimeline({
     }
   }
 
+  /*
+    Page-turn choreography (book POV):
+    - forward: the CURRENT page lifts from the right and rotates
+      around the left binding (rotateY 0 → -178) on top of the
+      next page, which is already lying flat beneath it.
+    - back: the previous page swings back over from the left
+      (rotateY -178 → 0) on top of the current one.
+  */
+  const variants = {
+    enter: (d: number) =>
+      d === 1
+        ? { rotateY: 0, zIndex: 1 } // new page lies flat beneath
+        : { rotateY: -178, zIndex: 40 }, // flips back over from the left
+    center: (d: number) => ({
+      rotateY: 0,
+      zIndex: 10,
+      transition:
+        d === 1
+          ? { duration: 0 }
+          : { duration: FLIP_DURATION, ease: [0.45, 0.05, 0.35, 1] as const },
+    }),
+    exit: (d: number) =>
+      d === 1
+        ? {
+            rotateY: -178,
+            zIndex: 40,
+            transition: { duration: FLIP_DURATION, ease: [0.45, 0.05, 0.35, 1] as const },
+          }
+        : { rotateY: 0, zIndex: 1, transition: { duration: FLIP_DURATION } },
+  };
+
+  /* travelling shade on the turning page (inherits variant timing) */
+  const shadeVariants = {
+    enter: { opacity: 0 },
+    center: { opacity: 0 },
+    exit: (d: number) =>
+      d === 1
+        ? { opacity: [0, 0.35, 0.15, 0], transition: { duration: FLIP_DURATION } }
+        : { opacity: 0 },
+  };
+
   return (
     <motion.div
-      className="relative mx-auto mt-10 max-w-lg sm:mt-16"
+      className="relative mx-auto mt-12 w-full max-w-3xl sm:mt-20"
       onViewportEnter={() => setStarted(true)}
       viewport={{ once: true, amount: 0.3 }}
-      style={{ perspective: 1400 }}
+      style={{ perspective: 1800 }}
     >
-      <div className="relative">
-        {/* stack shadow pages behind, for sketchbook depth */}
-        <div className="absolute inset-0 translate-x-1.5 translate-y-1.5 rounded-lg bg-white/70" />
-        <div className="absolute inset-0 translate-x-3 translate-y-3 rounded-lg bg-white/40" />
+      <div className="relative ml-3 sm:ml-4" style={{ transformStyle: "preserve-3d" }}>
+        {/* ── book body: remaining pages stacked beneath (right & bottom edges) ── */}
+        <div className="absolute inset-0 translate-x-[3px] translate-y-[3px] rounded-r-lg rounded-bl-sm bg-[#efefef] shadow-md" />
+        <div className="absolute inset-0 translate-x-[6px] translate-y-[6px] rounded-r-lg rounded-bl-sm bg-[#e2e2e2]" />
+        <div className="absolute inset-0 translate-x-[9px] translate-y-[9px] rounded-r-lg rounded-bl-sm bg-[#d4d4d4] shadow-xl" />
+        {/* cardboard back cover */}
+        <div className="absolute inset-0 translate-x-[13px] translate-y-[13px] rounded-r-lg rounded-bl-sm bg-[#8a6f52] shadow-2xl" />
 
-        <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={pageIdx}
-          onClick={handleTap}
-          className="relative min-h-[420px] cursor-pointer rounded-lg bg-white px-6 pb-8 pt-10 text-neutral-800 shadow-2xl sm:min-h-[480px] sm:px-10 sm:pt-12 select-none"
-          style={{ transformOrigin: "top center", transformStyle: "preserve-3d" }}
-          initial={{ rotateX: 90, opacity: 0 }}
-          animate={{ rotateX: 0, opacity: 1 }}
-          exit={{ rotateX: -100, opacity: 0 }}
-          transition={{ duration: 0.65, ease: [0.4, 0, 0.2, 1] }}
-        >
-          <SpiralBinding />
+        <SpiralBinding />
 
-          {/* date corner */}
-          <p className="text-right font-display text-xs tracking-wide text-neutral-400 sm:text-sm">
-            {page.emoji} {page.date} · {page.time}
-          </p>
-
-          {/* title — typed */}
-          <h3 className="mt-6 font-display text-2xl leading-snug text-neutral-900 sm:mt-8 sm:text-4xl">
-            {page.title.slice(0, titleChars)}
-            {started && !titleDone && <Cursor dark />}
-          </h3>
-
-          {/* description — typed */}
-          <p className="mt-4 min-h-[80px] font-display text-base leading-relaxed text-neutral-600 sm:mt-6 sm:text-xl">
-            {page.description.slice(0, descChars)}
-            {titleDone && !descDone && <Cursor dark />}
-          </p>
-
-          {/* polaroid photo */}
-          {page.image && pageDone && (
-            <motion.button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onImageClick?.(page.image!, page.title);
+        <AnimatePresence initial={false} custom={dir} mode="popLayout">
+          <motion.div
+            key={pageIdx}
+            custom={dir}
+            variants={variants}
+            initial="enter"
+            animate="center"
+            exit="exit"
+            onClick={handleTap}
+            className="relative min-h-[300px] cursor-pointer select-none rounded-r-lg rounded-bl-sm sm:min-h-[380px]"
+            style={{
+              transformOrigin: "left center",
+              transformStyle: "preserve-3d",
+            }}
+          >
+            {/* ══ FRONT of the page ══ */}
+            <div
+              className="relative flex min-h-[300px] flex-col rounded-r-lg rounded-bl-sm px-7 py-6 text-neutral-800 sm:min-h-[380px] sm:px-12 sm:py-9"
+              style={{
+                ...PAPER_STYLE,
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                boxShadow:
+                  "0 18px 45px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.25)",
               }}
-              className="mx-auto mt-4 block rotate-[-2deg] bg-white p-2 pb-6 shadow-lg ring-1 ring-black/5"
-              initial={{ opacity: 0, y: 12, rotate: -6 }}
-              animate={{ opacity: 1, y: 0, rotate: -2 }}
-              transition={{ duration: 0.5 }}
             >
-              <Image
-                src={page.image}
-                alt={page.title}
-                width={320}
-                height={220}
-                className="max-h-[180px] w-auto object-cover sm:max-h-[220px]"
+              {/* binding-side inner shadow (paper dips into the spiral) */}
+              <div
+                className="pointer-events-none absolute inset-y-0 left-0 w-10 rounded-bl-sm"
+                style={{
+                  background:
+                    "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.03) 55%, transparent)",
+                }}
               />
-            </motion.button>
-          )}
 
-          {/* hint / end mark */}
-          <div className="absolute bottom-3 left-0 right-0 text-center font-display text-[11px] text-neutral-300 sm:text-xs">
-            {pageDone && (isLast ? "the end ♥" : "tap to continue →")}
-          </div>
-        </motion.div>
+              {/* date corner */}
+              <p className="text-right font-display text-xs tracking-wide text-neutral-400 sm:text-sm">
+                {page.emoji} {page.date} · {page.time}
+              </p>
+
+              <div className={`mt-3 flex-1 gap-8 sm:mt-5 ${page.image ? "sm:flex sm:items-start" : ""}`}>
+                <div className="flex-1">
+                  {/* title — typed */}
+                  <h3 className="font-display text-2xl leading-snug text-neutral-900 sm:text-4xl">
+                    {page.title.slice(0, titleChars)}
+                    {started && !titleDone && <Cursor />}
+                  </h3>
+
+                  {/* description — typed */}
+                  <p className="mt-3 font-display text-base leading-relaxed text-neutral-600 sm:mt-5 sm:text-xl">
+                    {page.description.slice(0, descChars)}
+                    {titleDone && !descDone && <Cursor />}
+                  </p>
+                </div>
+
+                {/* polaroid photo */}
+                {page.image && pageDone && (
+                  <motion.button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onImageClick?.(page.image!, page.title);
+                    }}
+                    className="mx-auto mt-5 block shrink-0 rotate-[2.5deg] bg-white p-2 pb-6 shadow-[0_6px_16px_rgba(0,0,0,0.25)] ring-1 ring-black/5 sm:mx-0 sm:mt-1"
+                    initial={{ opacity: 0, y: 12, rotate: 8 }}
+                    animate={{ opacity: 1, y: 0, rotate: 2.5 }}
+                    transition={{ duration: 0.5 }}
+                  >
+                    <Image
+                      src={page.image}
+                      alt={page.title}
+                      width={280}
+                      height={200}
+                      className="max-h-[150px] w-auto object-cover sm:max-h-[190px]"
+                    />
+                  </motion.button>
+                )}
+              </div>
+
+              {/* hint / end mark */}
+              <div className="mt-4 text-center font-display text-[11px] text-neutral-300 sm:text-xs">
+                {pageDone && (isLast ? "the end ♥" : "")}
+              </div>
+
+              <PageCurl />
+
+              {/* travelling shade while this page turns */}
+              <motion.div
+                custom={dir}
+                variants={shadeVariants}
+                className="pointer-events-none absolute inset-0 rounded-r-lg rounded-bl-sm"
+                style={{
+                  background:
+                    "linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.15) 45%, transparent 80%)",
+                }}
+              />
+            </div>
+
+            {/* ══ BACK of the page (visible mid-turn) ══ */}
+            <div
+              className="absolute inset-0 rounded-r-lg rounded-bl-sm"
+              style={{
+                ...PAPER_STYLE,
+                transform: "rotateY(180deg)",
+                backfaceVisibility: "hidden",
+                WebkitBackfaceVisibility: "hidden",
+                boxShadow: "0 18px 45px rgba(0,0,0,0.35)",
+              }}
+            >
+              {/* faint ink bleed-through */}
+              <div
+                className="absolute inset-0 rounded-r-lg rounded-bl-sm opacity-[0.05]"
+                style={{
+                  background:
+                    "repeating-linear-gradient(0deg, transparent, transparent 26px, #777 27px)",
+                }}
+              />
+              <div
+                className="pointer-events-none absolute inset-y-0 right-0 w-10"
+                style={{
+                  background:
+                    "linear-gradient(to left, rgba(0,0,0,0.10), rgba(0,0,0,0.03) 55%, transparent)",
+                }}
+              />
+            </div>
+          </motion.div>
         </AnimatePresence>
       </div>
 
       {/* nav: arrows + dots */}
-      <div className="mt-6 flex items-center justify-center gap-4">
+      <div className="mt-8 flex items-center justify-center gap-4 sm:mt-10">
         <button
           type="button"
           aria-label="previous page"
@@ -211,10 +377,10 @@ export function SketchbookTimeline({
   );
 }
 
-function Cursor({ dark = false }: { dark?: boolean }) {
+function Cursor() {
   return (
     <motion.span
-      className={`inline-block ${dark ? "text-neutral-500" : ""}`}
+      className="inline-block text-neutral-500"
       animate={{ opacity: [1, 0, 1] }}
       transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
     >
