@@ -101,14 +101,14 @@ const TIMELINE: TimelineItem[] = [
   ╚══════════════════════════════════════════════════╝
 */
 const FLOATING_WORDS = [
-  "forever",
-  "us",
-  "home",
-  "dream",
-  "always",
-  "together",
-  "yours",
-  "heart",
+  "chase your dreams",
+  "i'm rooting for you",
+  "proud of you",
+  "you appeared",
+  "grateful",
+  "shine on",
+  "my miracle",
+  "always cheering",
 ];
 
 export default function Home() {
@@ -159,7 +159,7 @@ export default function Home() {
                 animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
                 transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
               >
-                Your Name
+                Mee So 미소
               </motion.span>
             </h1>
           </Reveal>
