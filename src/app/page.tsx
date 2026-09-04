@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Reveal } from "@/components/animations";
 import { FloatingHearts } from "@/components/floating-hearts";
 import { SectionDivider } from "@/components/section-divider";
-import { FoldCard, FoldSection } from "@/components/fold-card";
+import { FoldSection } from "@/components/fold-card";
 import { ImageModal } from "@/components/image-modal";
-import Image from "next/image";
+import { SketchbookTimeline, MusicToggle } from "@/components/sketchbook";
 
 
 
@@ -220,6 +220,7 @@ export default function Home() {
   return (
     <main className="relative overflow-x-hidden">
       <FloatingHearts />
+      <MusicToggle />
 
       {/* ═══════════ HERO ═══════════ */}
       <section
@@ -319,103 +320,12 @@ export default function Home() {
             </p>
           </Reveal>
 
-          {/* Timeline with fold-in cards */}
-          <div className="relative mt-8 sm:mt-20">
-            {/* Vertical line — desktop only */}
-            <motion.div
-              className="absolute left-1/2 top-0 hidden h-full w-px sm:block"
-              style={{ background: "linear-gradient(to bottom, rgba(99,29,118,0.6), rgba(255,170,234,0.3), transparent)", transformOrigin: "top" }}
-              initial={{ scaleY: 0 }}
-              whileInView={{ scaleY: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1.5, ease: "easeOut" }}
-            />
+          {/* Love Actually sketchbook — one page per moment */}
+          <SketchbookTimeline
+            pages={TIMELINE}
+            onImageClick={(src, alt) => setModalImage({ src, alt })}
+          />
 
-            {TIMELINE.map((item, i) => (
-              <FoldCard key={i} index={i} className="relative mb-5 last:mb-0 sm:mb-16">
-                <div
-                  className={`flex items-start sm:gap-16 ${
-                    i % 2 === 0
-                      ? "sm:flex-row"
-                      : "sm:flex-row-reverse sm:text-right"
-                  }`}
-                >
-                  {/* Dot on timeline — desktop only */}
-                  <div className="absolute left-1/2 top-6 z-10 hidden h-4 w-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center sm:flex">
-                    <motion.span
-                      className="absolute h-4 w-4 rounded-full border-2 border-orchid bg-[#0e0b16]"
-                      whileInView={{ scale: [0, 1.2, 1] }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: i * 0.1 }}
-                    />
-                    <motion.span
-                      className="absolute h-2 w-2 rounded-full bg-plum"
-                      whileInView={{ scale: [0, 1] }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.3, delay: i * 0.1 + 0.2 }}
-                    />
-                  </div>
-
-                  {/* Content card */}
-                  <div
-                    className={`w-full overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] transition-all duration-300 hover:border-orchid/20 hover:bg-white/[0.06] sm:w-[calc(50%-2rem)] ${
-                      i % 2 === 0 ? "" : "sm:ml-auto"
-                    }`}
-                  >
-                    {/* Text content */}
-                    <div className="p-4 sm:p-6">
-                      <div
-                        className={`flex items-center gap-2 sm:gap-3 ${
-                          i % 2 !== 0 ? "sm:flex-row-reverse" : ""
-                        }`}
-                      >
-                        <motion.span
-                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-orchid/20 text-base sm:h-8 sm:w-8"
-                          whileInView={{ rotate: [0, 10, -10, 0] }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6, delay: i * 0.15 }}
-                        >
-                          {item.emoji}
-                        </motion.span>
-                        <div className="flex items-center gap-2">
-                          <time className="text-[10px] font-medium tracking-wider text-saffron/70 uppercase sm:text-xs">
-                            {item.time}
-                          </time>
-                          <span className="text-[9px] text-white/20 sm:text-[10px]">•</span>
-                          <span className="text-[9px] text-white/25 sm:text-[10px]">
-                            {item.date}
-                          </span>
-                        </div>
-                      </div>
-                      <h3 className="mt-2 font-display text-lg text-white sm:mt-3 sm:text-xl">
-                        {item.title}
-                      </h3>
-                      <p className="mt-1.5 text-xs leading-relaxed text-white/50 sm:mt-2 sm:text-sm">
-                        {item.description}
-                      </p>
-                    </div>
-
-                    {/* Chat screenshot — tap to open modal */}
-                    {item.image && (
-                      <button
-                        type="button"
-                        onClick={() => setModalImage({ src: item.image!, alt: item.title })}
-                        className="block w-full border-t border-white/5 active:opacity-80"
-                      >
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          width={400}
-                          height={300}
-                          className="w-full object-cover"
-                        />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </FoldCard>
-            ))}
-          </div>
         </div>
       </section>
 
