@@ -143,34 +143,39 @@ const LETTER_LINES: { text: string; className: string }[] = [
   starting when the letter scrolls into view.
 */
 function TypewriterLetter({ lines }: { lines: { text: string; className: string }[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-15% 0px" });
+  const [started, setStarted] = useState(false);
   const [lineIdx, setLineIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
 
   useEffect(() => {
-    if (!inView || lineIdx >= lines.length) return;
+    if (!started || lineIdx >= lines.length) return;
     const current = lines[lineIdx].text;
     if (charIdx < current.length) {
-      // typing speed per character (ms)
-      const t = setTimeout(() => setCharIdx((c) => c + 1), 40);
+      // ⬇ typing speed per character (ms) — higher = slower
+      const t = setTimeout(() => setCharIdx((c) => c + 1), 70);
       return () => clearTimeout(t);
     }
-    // pause between lines
+    // ⬇ pause between lines (ms)
     const t = setTimeout(() => {
       setLineIdx((i) => i + 1);
       setCharIdx(0);
-    }, 450);
+    }, 600);
     return () => clearTimeout(t);
-  }, [inView, lineIdx, charIdx, lines]);
+  }, [started, lineIdx, charIdx, lines]);
+
+  const allDone = lineIdx >= lines.length;
 
   return (
-    <div ref={ref} className="min-h-[200px]">
+    <motion.div
+      className="min-h-[220px]"
+      onViewportEnter={() => setStarted(true)}
+      viewport={{ once: true, amount: 0.2 }}
+    >
       {lines.map((line, i) => {
-        if (i > lineIdx) return null; // not started yet
+        if (i > lineIdx) return null; // not reached yet
         const done = i < lineIdx;
         const shown = done ? line.text : line.text.slice(0, charIdx);
-        const typing = !done && inView && lineIdx < lines.length;
+        const typing = i === lineIdx && started && !allDone;
         return (
           <p key={i} className={line.className}>
             {shown}
@@ -178,7 +183,7 @@ function TypewriterLetter({ lines }: { lines: { text: string; className: string 
               <motion.span
                 className="inline-block"
                 animate={{ opacity: [1, 0, 1] }}
-                transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
               >
                 _
               </motion.span>
@@ -186,7 +191,7 @@ function TypewriterLetter({ lines }: { lines: { text: string; className: string 
           </p>
         );
       })}
-    </div>
+    </motion.div>
   );
 }
 
